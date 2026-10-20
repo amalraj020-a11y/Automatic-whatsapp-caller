@@ -71,6 +71,7 @@ type vadSink struct {
 }
 
 const vadThreshold = 0.008
+const vadSilenceFrames = 25 // 500 ms at 20 ms per decoded audio frame.
 
 func (v *vadSink) Close() error { return nil }
 func (v *vadSink) WriteFrame(frame []float32) error {
@@ -105,7 +106,7 @@ func (v *vadSink) WriteFrame(frame []float32) error {
 			v.silent++
 		}
 	}
-	if v.speech && v.silent >= 10 {
+	if v.speech && v.silent >= vadSilenceFrames {
 		clip := append([]float32(nil), v.samples...)
 		v.samples = nil
 		v.speech = false
@@ -152,7 +153,9 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 	ready := make(chan struct{}, 1)
 	answered := make(chan struct{}, 1)
 	ended := make(chan string, 1)
-	utterances := make(chan []float32, 2)
+	// Local Whisper + Ollama can take longer than the user's pause between phrases.
+	// Buffer several completed phrases so active decoding does not immediately drop them.
+	utterances := make(chan []float32, 8)
 	voice := &vadSink{out: utterances, log: stderr}
 	call.Receive(voice)
 	player := meowcaller.NewPlayer()
@@ -297,8 +300,8 @@ func transcribe(ctx context.Context, script, wav string) (string, error) {
 func reason(ctx context.Context, cfg talkConfig, text string) (string, error) {
 	body, _ := json.Marshal(map[string]any{
 		"model": cfg.model, "stream": false, "think": false,
-		"prompt":  "You are Amala speaking to Raj on a phone call. Reply naturally in the same Tamil, English, or Tanglish style. Keep it under two short sentences. Never claim an action was completed unless verified. Raj said: " + text,
-		"options": map[string]any{"num_predict": 100},
+		"prompt":  "You are Amala speaking to Raj on a phone call. Reply naturally in the same Tamil, English, or Tanglish style in one concise sentence (under 16 words). Never claim an action was completed unless verified. Raj said: " + text,
+		"options": map[string]any{"num_predict": 48},
 	})
 	req, _ := http.NewRequestWithContext(ctx, "POST", cfg.ollamaURL, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

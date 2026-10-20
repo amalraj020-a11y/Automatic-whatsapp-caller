@@ -39,3 +39,11 @@ These are model outputs, not verified reference transcripts. The Tanglish result
 - Local Whisper and local Ollama were used for speech processing and spoken reply generation. No Groq transcription call and no OpenAI API call were made in these tests.
 - The current phone `talk` prototype uses local Ollama; the requested Groq-primary reasoning provider is not yet integrated into this calling loop.
 - User audio, the WhatsApp database, phone number, call identifiers, model weights, binaries, and per-call logs are excluded from Git tracking.
+
+## 2026-10-20 — inbound audio and reply generation verified in a live call
+
+- At approximately 14:33, an accepted call delivered incoming RTP to the application. The relay decoded audio, detected a speech-level frame, and captured a 4.3-second utterance.
+- Local Whisper produced the exact output `So, what were the hopes you have done today?` This is the model output, not a verified reference transcript.
+- Local Ollama generated: `I hope to have made a difference today. I'm looking forward to hearing what you think.` The reply was synthesized and queued. Raj reported hearing the greeting and an interim “give me a minute to think” message; whether he heard the final synthesized reply is unconfirmed.
+- While speech processing was underway, later clips were dropped because the queue was full. To improve responsiveness, the source now waits for 500 ms of silence before ending an utterance, holds up to eight queued utterances, and asks Ollama for a single short spoken sentence with a smaller output limit. These newest changes have not yet been verified in another live call.
+- The build compiles. The Windows test suite is not fully green: two existing tests assume POSIX path and file-mode behavior. No claim of a full passing test suite is made.

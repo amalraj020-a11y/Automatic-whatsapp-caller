@@ -53,3 +53,7 @@ Use a test handset and consent to recording/transcription before testing. Do not
 - `livecall.go`, `engine.go`, `engine_media.go`: call lifecycle, answer event, bidirectional media, privacy-safe relay counters, and cancellation cleanup.
 - `docs/amala-language/`: Tamil/English/Tanglish policy, repository confirmation gate, offline validator, comparison and safety scripts.
 - `IMPLEMENTATION_TIMELINE.md`: privacy-redacted user-request and test timeline.
+
+### Latest live-call verification (2026-10-20)
+
+At approximately 14:33, an accepted call received and decoded inbound audio. Local Whisper transcribed a 4.3-second clip as `So, what were the hopes you have done today?`; local Ollama generated and queued a reply. Raj confirmed hearing the greeting and an interim “give me a minute to think” message. Final reply audibility is not confirmed. Later utterances were dropped while the queue was occupied, so the source was adjusted to use a 500 ms silence window, a larger bounded queue, and shorter generated replies. These adjustments need another live call to verify. The build compiles; two tests still fail due to POSIX assumptions on Windows.
