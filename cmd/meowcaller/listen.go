@@ -67,11 +67,15 @@ func runListen(ctx context.Context, cfg listenConfig, stderr io.Writer) error {
 			_ = call.Hangup()
 			return
 		}
-		player := call.Play(src)
+		// Register the completion handler before playback starts. Short messages can
+		// finish quickly, so attaching it after Call.Play may miss the event.
+		player := meowcaller.NewPlayer()
+		call.Subscribe(player)
 		player.OnFinish(func() {
 			log.Info().Msg("identity message finished; ending unknown-caller call")
 			time.AfterFunc(500*time.Millisecond, func() { _ = call.Hangup() })
 		})
+		player.Play(src)
 	})
 
 	log.Info().Msg("listening for incoming WhatsApp calls")
