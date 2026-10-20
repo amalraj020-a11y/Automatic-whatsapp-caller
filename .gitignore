@@ -1,0 +1,27 @@
+# Go
+*.test
+*.out
+/bin/
+/dist/
+# Amala local credentials, recordings, generated audio, models, and diagnostics
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+*.wav
+*.mp3
+*.ogg
+*.opus
+*.log
+*.exe
+/models/
+/recordings/
+/transcripts/
+/comparisons/
+/go-cache/
+/go-temp/
+/whisper-bin/
+/whisper.cpp/
+# OS
+.DS_Store
