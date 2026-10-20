@@ -61,3 +61,5 @@ At approximately 14:33, an accepted call received and decoded inbound audio. Loc
 ### Follow-up live call and safeguards (2026-10-20)
 
 A call was accepted and the greeting finished locally, but the relay summary recorded zero incoming RTP packets and zero decoded audio frames. The caller ended the call without an inbound utterance reaching Whisper, so no answer could be generated. The specific cause is before transcription; available evidence does not distinguish handset microphone transmission from relay delivery. Current source suppresses VAD during Amala playback/processing and rejects Whisper non-speech markers such as `[BLANK_AUDIO]`, preventing self-echo queueing and fabricated reasoning from empty audio. Focused transcript regression tests pass and the binary builds; an end-to-end reply test still requires a call that delivers inbound speech.
+
+If no inbound media is decoded within 12 seconds of the greeting, Amala now speaks a short microphone/audio-path troubleshooting prompt. This reports that no voice audio reached her rather than claiming she heard speech. The focused build/test verification was rerun after this change.

@@ -218,10 +218,29 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 		fmt.Fprintln(stderr, "greeting tts failed:", e)
 		voice.SetEnabled(true)
 	}
+	noInboundTimer := time.NewTimer(12 * time.Second)
+	defer noInboundTimer.Stop()
+	noInbound := noInboundTimer.C
+	audioFlowing := false
 	for {
 		select {
 		case <-ready:
+			audioFlowing = true
+			noInbound = nil
 			fmt.Fprintln(stderr, "Inbound WhatsApp audio is flowing")
+		case <-noInbound:
+			noInbound = nil
+			if !audioFlowing {
+				voice.SetEnabled(false)
+				fmt.Fprintln(stderr, "No inbound audio arrived after the greeting; telling Raj")
+				if src, ttsErr := synthesize(ctx, cfg.tempDir, "I'm not receiving your audio yet. Please check that your microphone isn't muted, then say hello again."); ttsErr == nil {
+					player.OnFinish(func() { voice.SetEnabled(true) })
+					player.Play(src)
+				} else {
+					voice.SetEnabled(true)
+					fmt.Fprintln(stderr, "audio troubleshooting prompt tts failed:", ttsErr)
+				}
+			}
 		case clip := <-utterances:
 			// Do not mistake the call's acoustic echo of Amala's own speech for
 			// a new user turn while Whisper and Ollama are processing this clip.
