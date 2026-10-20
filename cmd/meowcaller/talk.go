@@ -249,6 +249,9 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 			// otherwise several seconds of silence can sound like a dropped call.
 			ack := "I heard you. Give me a moment to think."
 			if src, err := synthesize(ctx, cfg.tempDir, ack); err == nil {
+				// The previous source's completion callback must not reopen VAD
+				// when this interim acknowledgement finishes.
+				player.OnFinish(nil)
 				player.Play(src)
 				fmt.Fprintln(stderr, "Amala acknowledgement queued; preparing transcription")
 			} else {
@@ -289,6 +292,7 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 					fmt.Fprintln(stderr, "Reply audio source finished locally; listening for the next turn")
 				})
 				player.Play(src)
+				fmt.Fprintln(stderr, "Reply audio queued to the call media sender")
 			} else {
 				fmt.Fprintln(stderr, err)
 				voice.SetEnabled(true)

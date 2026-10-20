@@ -55,3 +55,10 @@ These are model outputs, not verified reference transcripts. The Tanglish result
 - Added VAD gating so Amala’s own greeting/reply playback is not reprocessed as a new caller utterance. VAD remains disabled while a captured turn is transcribed/reasoned/spoken, then reopens for the next turn. Empty and known Whisper non-speech markers (including `[BLANK_AUDIO]`) are rejected; Amala asks the caller to repeat instead of asking Ollama to invent a response.
 - Focused `TestUsableTranscript` regression tests pass. The updated binary builds successfully. These fixes still need a call with verified inbound speech to validate end-to-end reply playback.
 - Added a one-time spoken troubleshooting prompt after 12 seconds without inbound media, so the call does not remain silent after the greeting when no remote audio reaches Amala.
+
+### End-to-end speech exchange on the updated call build (2026-10-20, approximately 18:26 IST)
+
+- The retry received RTP from the relay and decoded inbound audio. Whisper transcribed the first captured turn as `What were the works done to do? Hello. Hello.`; local Ollama replied `Hello. I'm Amala. What were the works done to do?`
+- The next captured turn was transcribed as `Whatever the works you have done today.`; Ollama replied `I have done my best today.` The local outbound player completed playback for both replies. Remote handset audibility cannot be proven from sender-side logs alone.
+- A further utterance was captured after the second reply, demonstrating that the live call continued beyond one exchange. This call disproves the earlier assumption that the receiver always gets zero RTP: relay delivery was intermittent between calls.
+- Fixed a callback reuse bug found during this call: an earlier reply's completion callback could fire when the following interim acknowledgement ended, reopening VAD while reasoning was still in progress. The latest build clears the callback for interim audio; this final callback fix was built and the focused transcript tests passed after the observed exchange.
