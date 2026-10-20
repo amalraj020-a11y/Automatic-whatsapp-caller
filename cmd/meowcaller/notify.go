@@ -146,12 +146,30 @@ func playNotification(ctx context.Context, call *meowcaller.Call, source meowcal
 }
 
 type notificationCallState interface {
-	OnReady(func())
+	OnAnswered(func())
 	OnEnd(func(string))
 	State() meowcaller.CallPhase
 }
 
 func registerNotificationCallbacks(call notificationCallState, onReady func(), onEnd func(string)) {
+	// Playback must start when WhatsApp confirms the callee answered. Waiting for
+	// OnReady deadlocks the greeting/report when the callee waits silently: OnReady
+	// requires inbound RTP, which may not arrive until the person starts speaking.
+	call.OnAnswered(onReady)
+	call.OnEnd(onEnd)
+	switch call.State() {
+	case meowcaller.CallPhaseEnded:
+		onEnd("ended before callback registration")
+	}
+}
+
+type mediaReadyCallState interface {
+	OnReady(func())
+	OnEnd(func(string))
+	State() meowcaller.CallPhase
+}
+
+func registerMediaReadyCallbacks(call mediaReadyCallState, onReady func(), onEnd func(string)) {
 	call.OnReady(onReady)
 	call.OnEnd(onEnd)
 	switch call.State() {
@@ -182,7 +200,7 @@ func waitNotification(
 	case <-answerC:
 		stop()
 		_ = hangup()
-		return fmt.Errorf("recipient did not answer within %s", answerTimeout)
+		return fmt.Errorf("no WhatsApp answer event within %s", answerTimeout)
 	case <-ctx.Done():
 		stop()
 		_ = hangup()

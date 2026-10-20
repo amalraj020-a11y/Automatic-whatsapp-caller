@@ -176,7 +176,7 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 		default:
 		}
 	})
-	registerNotificationCallbacks(call,
+	registerMediaReadyCallbacks(call,
 		func() {
 			select {
 			case ready <- struct{}{}:

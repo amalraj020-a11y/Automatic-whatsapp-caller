@@ -172,16 +172,18 @@ func TestRegisterNotificationCallbacksReplaysCurrentState(t *testing.T) {
 	tests := []struct {
 		name      string
 		phase     meowcaller.CallPhase
+		answered  bool
 		wantReady int
 		wantEnd   int
 	}{
-		{name: "active", phase: meowcaller.CallPhaseActive, wantReady: 1},
+		{name: "answered and active", phase: meowcaller.CallPhaseActive, answered: true, wantReady: 1},
+		{name: "answered before inbound media", phase: meowcaller.CallPhaseCalling, answered: true, wantReady: 1},
 		{name: "ended", phase: meowcaller.CallPhaseEnded, wantEnd: 1},
 		{name: "calling", phase: meowcaller.CallPhaseCalling},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			call := &fakeNotificationCall{phase: tc.phase}
+			call := &fakeNotificationCall{phase: tc.phase, answered: tc.answered}
 			var ready, ended atomic.Int32
 			registerNotificationCallbacks(call, func() { ready.Add(1) }, func(string) { ended.Add(1) })
 			if got := int(ready.Load()); got != tc.wantReady {
@@ -194,12 +196,44 @@ func TestRegisterNotificationCallbacksReplaysCurrentState(t *testing.T) {
 	}
 }
 
-type fakeNotificationCall struct {
-	phase   meowcaller.CallPhase
-	onReady func()
-	onEnd   func(string)
+func TestRegisterMediaReadyCallbacksReplaysCurrentState(t *testing.T) {
+	tests := []struct {
+		name      string
+		phase     meowcaller.CallPhase
+		wantReady int
+		wantEnd   int
+	}{
+		{name: "active", phase: meowcaller.CallPhaseActive, wantReady: 1},
+		{name: "ended", phase: meowcaller.CallPhaseEnded, wantEnd: 1},
+		{name: "calling", phase: meowcaller.CallPhaseCalling},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			call := &fakeNotificationCall{phase: tc.phase}
+			var ready, ended atomic.Int32
+			registerMediaReadyCallbacks(call, func() { ready.Add(1) }, func(string) { ended.Add(1) })
+			if got := int(ready.Load()); got != tc.wantReady {
+				t.Fatalf("media-ready callbacks = %d, want %d", got, tc.wantReady)
+			}
+			if got := int(ended.Load()); got != tc.wantEnd {
+				t.Fatalf("end callbacks = %d, want %d", got, tc.wantEnd)
+			}
+		})
+	}
 }
 
+type fakeNotificationCall struct {
+	phase    meowcaller.CallPhase
+	answered bool
+	onReady  func()
+	onEnd    func(string)
+}
+
+func (c *fakeNotificationCall) OnAnswered(fn func()) {
+	if c.answered && fn != nil {
+		fn()
+	}
+}
 func (c *fakeNotificationCall) OnReady(fn func())           { c.onReady = fn }
 func (c *fakeNotificationCall) OnEnd(fn func(string))       { c.onEnd = fn }
 func (c *fakeNotificationCall) State() meowcaller.CallPhase { return c.phase }
@@ -212,7 +246,7 @@ func TestWaitNotificationAnswerTimeout(t *testing.T) {
 		func() { stopped.Store(true) },
 		func() error { hungUp.Store(true); return nil },
 	)
-	if err == nil || !strings.Contains(err.Error(), "did not answer") {
+	if err == nil || !strings.Contains(err.Error(), "no WhatsApp answer event") {
 		t.Fatalf("error = %v, want answer timeout", err)
 	}
 	if !stopped.Load() || !hungUp.Load() {
