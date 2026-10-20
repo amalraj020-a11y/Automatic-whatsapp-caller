@@ -31,3 +31,11 @@ to warning-only structured logs; `MEOW_LOG_LEVEL` opts into a different level.
 Private Amala settings, phone numbers, linked-device stores, and report workbooks must stay
 in local ignored files such as `config/amala.local.json` and `reports/`. Do not commit those
 files or copy their contents into documentation, logs, GitHub, or shared spreadsheets.
+
+`listen` keeps the linked Amala WhatsApp device online for incoming calls. It answers an
+incoming call, speaks Amala's identity message, then ends the call after playback. It does
+not log or speak the caller's phone number:
+
+```text
+meowcaller listen --store <path>
+```
