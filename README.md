@@ -82,7 +82,7 @@ meowcaller's video call implementation is built on the design of [WaCalls](https
 
 ## Amala interactive calling
 
-This branch adds an experimental `meowcaller talk` command for Amala with local multilingual Whisper transcription, local Ollama replies, and a Windows SAPI female English voice. Setup, privacy notes, current limitations, and the user-requested test timeline are documented in [docs/AMALA_CALLING.md](docs/AMALA_CALLING.md) and [docs/IMPLEMENTATION_TIMELINE.md](docs/IMPLEMENTATION_TIMELINE.md). A live call subsequently received and decoded audio and produced a local transcript and reply. Raj confirmed hearing the greeting and an interim “give me a minute” message; final reply audibility and the latest responsiveness changes remain unverified.
+This branch adds an experimental `meowcaller talk` command for Amala with local multilingual Whisper transcription, local Ollama replies, and a Windows SAPI female English voice. Setup, privacy notes, current limitations, and the user-requested test timeline are documented in [docs/AMALA_CALLING.md](docs/AMALA_CALLING.md) and [docs/IMPLEMENTATION_TIMELINE.md](docs/IMPLEMENTATION_TIMELINE.md). An earlier live call received and decoded speech and produced a local transcript and reply, but final reply audibility was not confirmed. In the latest call, the greeting finished locally but the relay delivered zero incoming RTP packets. Source now blocks self-echo during Amala playback and rejects Whisper non-speech markers; an end-to-end reply still needs a call with inbound audio.
 
 ## Sponsoring and contribution
 You may contribute to the maintenance of this library by sponsoring its maintainers on [GitHub](https://purpshell.dev/sponsor).

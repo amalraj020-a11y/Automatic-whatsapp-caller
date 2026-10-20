@@ -47,3 +47,10 @@ These are model outputs, not verified reference transcripts. The Tanglish result
 - Local Ollama generated: `I hope to have made a difference today. I'm looking forward to hearing what you think.` The reply was synthesized and queued. Raj reported hearing the greeting and an interim “give me a minute to think” message; whether he heard the final synthesized reply is unconfirmed.
 - While speech processing was underway, later clips were dropped because the queue was full. To improve responsiveness, the source now waits for 500 ms of silence before ending an utterance, holds up to eight queued utterances, and asks Ollama for a single short spoken sentence with a smaller output limit. These newest changes have not yet been verified in another live call.
 - The build compiles. The Windows test suite is not fully green: two existing tests assume POSIX path and file-mode behavior. No claim of a full passing test suite is made.
+
+### Follow-up live call and transcript/echo safeguards (2026-10-20, approximately 18:03–18:06 IST)
+
+- The test call was accepted, and the greeting WAV finished in the local sender. The caller ended the call approximately three minutes later.
+- The privacy-safe relay summary showed `rtp_packets=0`, `decoded_audio_frames=0`, and zero captured speech clips. No speech reached Whisper on this attempt, so no spoken reply was generated. This locates this specific failure before transcription and reasoning; the log cannot determine whether the handset sent no microphone audio or the relay failed to deliver it.
+- Added VAD gating so Amala’s own greeting/reply playback is not reprocessed as a new caller utterance. VAD remains disabled while a captured turn is transcribed/reasoned/spoken, then reopens for the next turn. Empty and known Whisper non-speech markers (including `[BLANK_AUDIO]`) are rejected; Amala asks the caller to repeat instead of asking Ollama to invent a response.
+- Focused `TestUsableTranscript` regression tests pass. The updated binary builds successfully. These fixes still need a call with verified inbound speech to validate end-to-end reply playback.

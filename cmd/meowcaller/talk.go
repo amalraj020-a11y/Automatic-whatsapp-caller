@@ -58,6 +58,7 @@ func parseTalkArgs(args []string, stderr io.Writer) (talkConfig, error) {
 
 type vadSink struct {
 	mu           sync.Mutex
+	enabled      bool
 	speech       bool
 	reported     bool
 	silent       int
@@ -74,6 +75,12 @@ const vadThreshold = 0.008
 const vadSilenceFrames = 25 // 500 ms at 20 ms per decoded audio frame.
 
 func (v *vadSink) Close() error { return nil }
+func (v *vadSink) SetEnabled(enabled bool) {
+	v.mu.Lock()
+	v.enabled = enabled
+	v.mu.Unlock()
+}
+
 func (v *vadSink) WriteFrame(frame []float32) error {
 	if len(frame) == 0 {
 		return nil
@@ -85,6 +92,9 @@ func (v *vadSink) WriteFrame(frame []float32) error {
 	rms := math.Sqrt(sum / float64(len(frame)))
 	v.mu.Lock()
 	defer v.mu.Unlock()
+	if !v.enabled {
+		return nil
+	}
 	v.frames++
 	if rms > v.peakRMS {
 		v.peakRMS = rms
@@ -199,18 +209,23 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 	fmt.Fprintln(stderr, "Amala outbound audio started; waiting for speech")
 	if src, e := synthesize(ctx, cfg.tempDir, "Hello Raj. This is Amala. I can hear you. Please speak."); e == nil {
 		player.OnFinish(func() {
+			voice.SetEnabled(true)
 			fmt.Fprintln(stderr, "Greeting audio source finished locally; remote audibility is not confirmed")
 		})
 		player.Play(src)
 		fmt.Fprintln(stderr, "Greeting audio queued to the call media sender")
 	} else {
 		fmt.Fprintln(stderr, "greeting tts failed:", e)
+		voice.SetEnabled(true)
 	}
 	for {
 		select {
 		case <-ready:
 			fmt.Fprintln(stderr, "Inbound WhatsApp audio is flowing")
 		case clip := <-utterances:
+			// Do not mistake the call's acoustic echo of Amala's own speech for
+			// a new user turn while Whisper and Ollama are processing this clip.
+			voice.SetEnabled(false)
 			// Give a short local spoken acknowledgement before CPU Whisper starts;
 			// otherwise several seconds of silence can sound like a dropped call.
 			ack := "I heard you. Give me a moment to think."
@@ -227,8 +242,18 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 			}
 			text, err := transcribe(ctx, cfg.transcriber, wav)
 			_ = os.Remove(wav)
-			if err != nil || strings.TrimSpace(text) == "" {
+			if err != nil || !usableTranscript(text) {
 				fmt.Fprintln(stderr, "transcription failed:", err)
+				if err == nil {
+					fmt.Fprintln(stderr, "transcription contained no usable speech")
+				}
+				if src, ttsErr := synthesize(ctx, cfg.tempDir, "I couldn't hear that clearly. Please say it again."); ttsErr == nil {
+					player.OnFinish(func() { voice.SetEnabled(true) })
+					player.Play(src)
+				} else {
+					voice.SetEnabled(true)
+					fmt.Fprintln(stderr, "retry prompt tts failed:", ttsErr)
+				}
 				continue
 			}
 			fmt.Fprintln(stderr, "Raj:", text)
@@ -240,9 +265,14 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 			fmt.Fprintln(stderr, "Amala:", reply)
 			src, err := synthesize(ctx, cfg.tempDir, reply)
 			if err == nil {
+				player.OnFinish(func() {
+					voice.SetEnabled(true)
+					fmt.Fprintln(stderr, "Reply audio source finished locally; listening for the next turn")
+				})
 				player.Play(src)
 			} else {
 				fmt.Fprintln(stderr, err)
+				voice.SetEnabled(true)
 			}
 		case r := <-ended:
 			frames, starts, clips, peak, pending := voice.summary()
@@ -253,6 +283,19 @@ func runTalk(ctx context.Context, cfg talkConfig, stderr io.Writer) error {
 			_ = call.Hangup()
 			return ctx.Err()
 		}
+	}
+}
+
+func usableTranscript(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+	switch strings.ToUpper(text) {
+	case "[BLANK_AUDIO]", "[INAUDIBLE]", "[SILENCE]", "[NO SPEECH]", "[SIDE CONVERSATION]", "[MUSIC]", "[APPLAUSE]":
+		return false
+	default:
+		return true
 	}
 }
 

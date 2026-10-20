@@ -57,3 +57,7 @@ Use a test handset and consent to recording/transcription before testing. Do not
 ### Latest live-call verification (2026-10-20)
 
 At approximately 14:33, an accepted call received and decoded inbound audio. Local Whisper transcribed a 4.3-second clip as `So, what were the hopes you have done today?`; local Ollama generated and queued a reply. Raj confirmed hearing the greeting and an interim “give me a minute to think” message. Final reply audibility is not confirmed. Later utterances were dropped while the queue was occupied, so the source was adjusted to use a 500 ms silence window, a larger bounded queue, and shorter generated replies. These adjustments need another live call to verify. The build compiles; two tests still fail due to POSIX assumptions on Windows.
+
+### Follow-up live call and safeguards (2026-10-20)
+
+A call was accepted and the greeting finished locally, but the relay summary recorded zero incoming RTP packets and zero decoded audio frames. The caller ended the call without an inbound utterance reaching Whisper, so no answer could be generated. The specific cause is before transcription; available evidence does not distinguish handset microphone transmission from relay delivery. Current source suppresses VAD during Amala playback/processing and rejects Whisper non-speech markers such as `[BLANK_AUDIO]`, preventing self-echo queueing and fabricated reasoning from empty audio. Focused transcript regression tests pass and the binary builds; an end-to-end reply test still requires a call that delivers inbound speech.
