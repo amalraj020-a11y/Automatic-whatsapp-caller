@@ -7,6 +7,11 @@
 .env
 .env.*
 !.env.example
+# Private Amala runtime settings, including phone numbers and local report targets.
+config/amala.local.*
+reports/*.xlsx
+reports/*.xls
+reports/*.csv
 *.db
 *.db-*
 *.wav

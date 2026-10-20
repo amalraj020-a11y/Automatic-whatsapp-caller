@@ -27,3 +27,7 @@ Flags:
 Pairing is an explicit terminal step so the QR never enters service logs. `notify` never pairs
 and refuses an unpaired store. The command does not offer diagnostic capture and defaults
 to warning-only structured logs; `MEOW_LOG_LEVEL` opts into a different level.
+
+Private Amala settings, phone numbers, linked-device stores, and report workbooks must stay
+in local ignored files such as `config/amala.local.json` and `reports/`. Do not commit those
+files or copy their contents into documentation, logs, GitHub, or shared spreadsheets.
